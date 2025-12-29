@@ -6,15 +6,16 @@ from os import getenv
 from dotenv import load_dotenv
 from langchain.chat_models import init_chat_model
 from langchain_core.prompts import PromptTemplate, ChatPromptTemplate
+from langchain_core.prompts import SystemMessagePromptTemplate, HumanMessagePromptTemplate
 
 load_dotenv()
-
+base_url = getenv("DEEPSEEK_BASE_URL")
 api_key = getenv('DEEPSEEK_API_KEY')
 
 model = init_chat_model(
     model='deepseek-chat',
     api_key=api_key,
-    max_tokens=500,
+    max_tokens=50,
 )
 
 
@@ -114,13 +115,122 @@ def example_3_chatprompttemplate():
     print(res_chat.content)
 
 
+# 多轮对话模板
+def example_4_conversation_template():
+    template = ChatPromptTemplate.from_messages([
+        ("system", "你是一个{role}。{instruction}"),
+        ("user", "{question1}"),
+        ("assistant", "{answer1}"),  # 目前没看出来怎么使用？？？
+        ("user", "{question2}")
+    ])
+
+    # 填充模板
+    messages = template.format_messages(
+        role="Python 专家",
+        instruction="回答要简洁、准确",
+        question1="什么是列表？",
+        answer1="列表是 Python 中的有序可变集合，用方括号 [] 表示。",
+        question2="它和元组有什么区别？"  # 基于上下文的问题
+    )
+
+    response = model.invoke(messages)
+    print(f"\nAI 回复：{response.content}\n")
+
+
+# 使用MessagePromptTemplate类（高级用法）
+
 # “更细粒度的控制”指的是能够深入到框架的各个组件和流程中，进行定制化调整和干预。
+
+def example_5_message_prompt_template():
+    system_template = SystemMessagePromptTemplate.from_template(
+        '你是一个{role}，{instruction}'
+    )
+    human_template = HumanMessagePromptTemplate.from_template(
+        '关于{topic}，我想知道{question}'
+    )
+
+    chat_template = ChatPromptTemplate.from_messages([
+        system_template,
+        human_template,
+    ])
+
+    chat_prompt = chat_template.format_messages(
+        role='Python老师',
+        instruction='回答通俗易懂',
+        topic='装饰器',
+        question='原理与用法',
+    )
+
+    model_reasoner = init_chat_model(
+        model='deepseek-reasoner',
+        base_url=base_url,
+        api_key=api_key,
+        temperature=1.0,
+        max_tokens=100,
+        timeout=None,  # 总是超时
+    )
+
+    response_message = model_reasoner.invoke(chat_prompt)
+    print(response_message.content)
+    for data in response_message:
+        print(data)
+
+
+# 部分变量（Partial Variable）
+def example_6_partial_variable():
+    original_template = ChatPromptTemplate.from_messages([
+        ("system", "你是一个{role}，擅长{expertise}。"),
+        ("user", "请给我{task}，概括回答"),
+    ])
+    print(original_template)
+
+    partially_filled = original_template.partial(
+        role='LangChain学生',
+        expertise='AI app开发',
+    )
+    print(partially_filled)
+
+    message_one = partially_filled.format_messages(
+        task='介绍用langchain进行AI应用开发的步骤',
+    )
+    print(message_one)
+
+    res_one = model.invoke(message_one)
+    print(res_one.content)
+
+    # 复用模板，不同的 task
+    message_two = partially_filled.format_messages(
+        task='从2026年以后的发展前景怎么样'
+    )
+    res_two = model.invoke(message_two)
+    print(res_two.content)
+
+
+# 与LCEL链式调用（预览）
+def example_7_lcel_chains():
+    template = ChatPromptTemplate.from_messages([
+        ("system", "你是一个{role}"),
+        ("user", "{input}"),
+    ])
+
+    chain = template | model
+
+    res = chain.invoke({
+        "role": "幽默的程序员",
+        "input": "解释什么是bug"
+    })
+    print(res.content)
+
+
 def main():
     try:
-        # example_1_why_template()
-        # example_2_prompt_template_basics()
+        example_1_why_template()
+        example_2_prompt_template_basics()
         example_3_chatprompttemplate()
-
+        example_4_conversation_template()
+        example_5_message_prompt_template()
+        example_6_partial_variable()
+        example_7_lcel_chains()
     except Exception as e:
         print(e)
 
