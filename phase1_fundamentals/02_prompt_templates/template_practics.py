@@ -47,8 +47,8 @@ def chat_prompt_template():
 
     list_questions = [
         "你好！",
-        "你能做什么？简短回答",
-        "解释一下langchain中的LCEL",
+        # "你能做什么？简短回答",
+        # "解释一下langchain中的LCEL",
     ]
     return chat_template, chat_history, template_params, list_questions
 
@@ -65,7 +65,10 @@ def chat_invoke():
             input=question
         )
         response = model.invoke(messages)
+        for re in response:
+            print(re)
         print(f"助手：{response.content}\n")
+
 
         # 更新对话历史
         chat_history.append(("human", question))

@@ -97,7 +97,7 @@ def example_2_prompt_template_basics():
 
 
 # 3.ChatPromptTemplate 聊天消息模板
-def example_3_chatprompttemplate():
+def example_3_chatprompt_template():
     # 使用元组格式（最简单，推荐）
     template = ChatPromptTemplate.from_messages([
         ("system", "你是一个{role}，擅长{expertise}。"),
@@ -226,7 +226,7 @@ def main():
     try:
         example_1_why_template()
         example_2_prompt_template_basics()
-        example_3_chatprompttemplate()
+        example_3_chatprompt_template()
         example_4_conversation_template()
         example_5_message_prompt_template()
         example_6_partial_variable()

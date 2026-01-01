@@ -2,28 +2,14 @@
 # -*- coding: utf-8 -*-
 """"""
 # ----------------------------------------------------------------------------------------------------------------------
-# 实例：构建一个简单的聊天机器人(1.加入多套对话模板；2.保留最近N组对话；3.学习LCEL基础，初步应用)
+# 实例：构建一个简单的聊天机器
 
-# LCEL LangChain expression language(LangChain表达式)：一种声明式的方法来链接LangChain组件
-'''
-标准接口：
-stream: 流式返回响应的块
-invoke: 在输入上调用链
-batch: 在输入列表上调用链
-组件	          输入类型	                    输出类型
-提示词	      字典	                        提示值
-聊天模型	      单个字符串、聊天消息列表或提示值	聊天消息
-大型语言模型	  单个字符串、聊天消息列表或提示值	字符串
-输出解析器	  LLM或聊天模型的输出	            取决于解析器
-检索器	      单个字符串	                    文档列表
-工具	          单个字符串或字典，取决于工具	    取决于工具
-'''
 from os import getenv
+
 from dotenv import load_dotenv
 from langchain.chat_models import init_chat_model
-from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder,SystemMessagePromptTemplate
+from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
 from langchain_core.messages import SystemMessage, HumanMessage, AIMessage
-from langchain_core.runnables import RunnablePassthrough,RunnableLambda
 
 load_dotenv()
 api_key = getenv("DEEPSEEK_API_KEY")
@@ -39,8 +25,8 @@ model = init_chat_model(
 def chat_system_template():
     system_prompt = '你是一个{feature}的{profession}。请保持{style}的回复风格。'
 
-    chat_system_template = ChatPromptTemplate([
-        ('system', system_prompt),# 可以用SystemMessagePromptTemplate吗
+    chat_system_prompt_template = ChatPromptTemplate.from_messages([
+        ('system', system_prompt),
         MessagesPlaceholder(variable_name='chat_history'),
         ('user', '{input}')
     ])
@@ -49,7 +35,15 @@ def chat_system_template():
     chat_system_template = ChatPromptTemplate
     区别？？？
     '''
-    return chat_system_template
+    return chat_system_prompt_template
+
+
+def system_messages_his(prompt_params):
+    feature = prompt_params.get('feature')
+    profession = prompt_params.get('profession')
+    style = prompt_params.get('style')
+    content = f'你是一个{feature}的{profession}。请保持{style}的回复风格。'
+    return SystemMessage(content=content)
 
 
 def chat_params():
@@ -58,14 +52,13 @@ def chat_params():
         'profession': 'AI应用开发工程师',
         'style': '简要兼具学术性',
     }
-
     chat_history = []
 
     question_list = [
         '你好！',
-        '你能做什么？简短回答',
-        '解释一下langchain中的LCEL',
-        '在上海，该岗位的入门员工薪资是多少'
+        # '你能做什么？简短回答',
+        # '解释一下langchain中的LCEL',
+        # '在上海，该岗位的入门员工薪资是多少'
     ]
     return prompt_params, chat_history, question_list
 
@@ -75,11 +68,12 @@ def chat_response():
     total_tokens = 0
     turn = 0
     chat_template = chat_system_template()
+    system_messages = system_messages_his(prompt_params)
 
     for question in question_list:
         turn += 1
         chat_prompt_template = chat_template.format_messages(
-            **prompt_params,  # prompt_params=prompt_params 代码错误，运行出来是‘feature’？？？
+            **prompt_params,
             chat_history=chat_history,
             input=question,
         )
@@ -87,8 +81,6 @@ def chat_response():
         response = model.invoke(chat_prompt_template)
         print(response.content)
 
-        system_prompt = chat_prompt_template[0]
-        chat_history.append(system_prompt)
         chat_history.append(HumanMessage(content=question))
         chat_history.append(AIMessage(content=response.content))
 
@@ -96,9 +88,12 @@ def chat_response():
         total_tokens += tokens_info['total_tokens']
         print(f'本轮使用量：{tokens_info} \n 累计用量：{total_tokens}')
 
+    def system_prompt():
+        system_prompt_his = chat_prompt_template[0]
+        sys_his = [system_prompt_his]
+        print(sys_his)
 
-
-    return turn, total_tokens, chat_history
+    return turn, total_tokens, chat_history, system_prompt, system_messages
 
 
 def total_tokens_used(response):
@@ -116,8 +111,9 @@ def total_tokens_used(response):
 
 def main():
     try:
-        turns, total_tokens, chat_history = chat_response()
+        turns, total_tokens, chat_history, system_prompt, system_messages = chat_response()
         print(f"对话完成！共 {turns} 轮，总Token使用: {total_tokens}")
+        print(f'对话历史如下：{system_messages}')
         for i in chat_history:
             print(f'对话历史如下：{i}')
     except Exception as e:
